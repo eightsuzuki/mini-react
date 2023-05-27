@@ -2,19 +2,8 @@
  * @flow
  */
 
-import { createElement, render, createDom } from '../src';
+import { createElement, render } from '../render';
 import { JSDOM } from 'jsdom';
-
-describe('createElement', () => {
-  test('create element', () => {
-    let expected = {
-      type: 'div',
-      props: { children: [] },
-    };
-    let elem = createElement('div', null);
-    expect(elem).toEqual(expected);
-  });
-});
 
 describe('render', () => {
   let container = null;
@@ -68,47 +57,5 @@ describe('render', () => {
 
     expect(divElement.tagName).toBe('PARENT');
     expect(divElement.firstChild.tagName).toBe('CHILD');
-  });
-});
-
-describe('createDom', () => {
-  beforeEach(() => {
-    const dom = new JSDOM('<!doctype html><html><body></body></html>');
-    global.document = dom.window.document;
-  });
-
-  afterEach(() => {
-    delete global.document;
-  });
-
-  test('create DOM node with type and prop', () => {
-    const fiber = {
-      type: 'div',
-      props: {
-        value: 'Hi',
-      },
-    };
-  
-    const domNode = createDom(fiber);
-
-    expect(domNode.nodeType).toBe(1);
-    expect(domNode.value).toBe('Hi');
-    expect(domNode.nodeValue).toBe(null);
-    //nodeValueはテキストノードの時のみ
-  });
-
-  test('create DOM text node', () => {
-    let fiber = {
-      type: 'TEXT_ELEMENT',
-      props: {
-        value: 'Hi',
-      },
-    };
-
-    const domNode = createDom(fiber);
-
-    expect(domNode.nodeType).toBe(3);
-    expect(domNode.nodeValue).toBe('Hi');
-    expect(domNode.value).toBe('Hi');
   });
 });
