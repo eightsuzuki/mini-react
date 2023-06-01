@@ -1,3 +1,5 @@
+//learn react
+
 function createTextElement(text) {
   return {
     type: 'TEXT_ELEMENT', // 特別なテキストノード
