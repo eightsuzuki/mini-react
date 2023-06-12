@@ -6,8 +6,10 @@ import {
   createElement,
   render,
   createDom,
-  workLoop,
   performUnitOfWork,
+  workLoop,
+  commitRoot,
+  commitWork,
 } from '../src';
 import { JSDOM } from 'jsdom';
 
@@ -144,8 +146,7 @@ describe('performUnitOfWork', () => {
 
   //   expect(parentFiber.dom.childNodes[0]).toBe(childFiber.dom);
   // });
-  //step 1以外を消去してください
-
+  // step 1以外を消去してください
 
   test('step 2:Make childFibers of fiber', () => {
     const fiber = {
@@ -165,7 +166,7 @@ describe('performUnitOfWork', () => {
     expect(fiber.child.sibling.type).toBe('p2');
   });
 
-  test('step 3:Determine next fiber(childFiber)', () => {
+  test('step 3:Determine next fiber(child exit)', () => {
     const fiber = {
       type: 'div',
       props: {
@@ -186,24 +187,143 @@ describe('performUnitOfWork', () => {
     expect(nextFiber).toBe(fiber.child);
   });
 
-  // test('step 3:Determine next fiber(siblingFiber)', () => {
-  //   const fiber = {
-  //     type: 'div',
-  //     props: {
-  //       children: [{ type: 'p1', props: {} }],
-  //     },
-  //     parent: null,
-  //     dom: null,
-  //     child: null,
-  //     sibling: {
-  //       type: 'p2',
-  //       props: {},
-  //       parent: null,
-  //       dom: null,
-  //     },
-  //   };
+  test('step 3:Determine next fiber(sibling and no child exit)', () => {
+    const fiber = {
+      type: 'div1',
+      props: {
+        children: {},
+      },
+      parent: null,
+      dom: null,
+      child: null,
+      sibling: {
+        type: 'div2',
+        parent: null,
+      },
+    };
 
-  //   const nextFiber = performUnitOfWork(fiber);
-  //   expect(nextFiber).toBe(fiber.sibling);
-  // });
+    const nextFiber = performUnitOfWork(fiber);
+    expect(nextFiber).toBe(fiber.sibling);
+  });
+
+  test('step 3:Determine next fiber(parent and no sibling, no child exit)', () => {
+    const parentFiber = {
+      dom: document.createElement('div'),
+      parent: null,
+      sibling: {
+        type: 'div2',
+        parent: null,
+      },
+    };
+    const fiber = {
+      type: 'div1',
+      props: {
+        children: {},
+      },
+      parent: parentFiber,
+      dom: null,
+      child: null,
+      sibling: null,
+    };
+
+    const nextFiber = performUnitOfWork(fiber);
+    expect(nextFiber).toBe(parentFiber.sibling);
+  });
 });
+
+describe('commitWork', () => {
+  beforeEach(() => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>');
+    global.document = dom.window.document;
+  });
+
+  afterEach(() => {
+    delete global.document;
+  });
+
+  test('commit fiber.dom to the parent DOM', () => {
+    const parentDom = document.createElement('parent');
+    const childDom = document.createElement('child');
+
+    const fiber = {
+      dom: childDom,
+      parent: {
+        dom: parentDom,
+      },
+      child: null,
+      sibling: null,
+    };
+
+    commitWork(fiber);
+
+    expect(parentDom.contains(childDom)).toBe(true);
+  });
+
+  test('commit child and sibling fibers', () => {
+    // モックとして使用するDOM要素を作成
+    const parentDom = document.createElement('parent');
+    const myDom = document.createElement('me');
+    const childDom = document.createElement('child1');
+    const siblingDom = document.createElement('child2');
+
+    const myFiber = {
+      dom: myDom,
+      parent: {
+        dom: parentDom,
+      },
+      child: null,
+      sibling: null,
+    };
+
+    const siblingFiber = {
+      dom: siblingDom,
+      parent: myFiber,
+      child: null,
+      sibling: null,
+    };
+
+    const childFiber = {
+      dom: childDom,
+      parent: myFiber,
+      child: null,
+      sibling: siblingFiber,
+    };
+
+    myFiber.child = childFiber;
+
+    commitWork(myFiber);
+
+    expect(parentDom.contains(myDom)).toBe(true);
+    expect(myDom.contains(childDom)).toBe(true);
+    expect(childDom.nextSibling).toBe(siblingDom);
+    expect(childDom.contains(myDom)).toBe(false);
+    expect(parentDom.contains(siblingDom)).toBe(true);
+  });
+});
+
+// describe('commitRoot', () => {
+//   beforeEach(() => {
+//     const dom = new JSDOM('<!doctype html><html><body></body></html>');
+//     global.document = dom.window.document;
+//   });
+
+//   afterEach(() => {
+//     delete global.document;
+//   });
+
+//   test('commitWork', () => {
+//   });
+// });
+
+// describe('workLoop', () => {
+//   const requestIdleCallback = jest.fn((callback) => {
+//     callback({ timeRemaining: () => 1 }); // 仮の timeRemaining の実装
+//   });
+
+//   test('requestIdleCallback mock', () => {
+//     workLoop();
+
+//     expect(requestIdleCallback).toHaveBeenCalledTimes(1);
+//     expect(requestIdleCallback).toHaveBeenCalledWith(expect.any(Function));
+//   });
+// });

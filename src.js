@@ -1,5 +1,3 @@
-//learn react
-
 function createTextElement(text) {
   return {
     type: 'TEXT_ELEMENT', // 特別なテキストノード
@@ -57,37 +55,55 @@ export function createDom(fiber) {
 }
 
 export function render(element, container) {
-  nextUnitOfWork = {
-    dom: container, // ここのdomは、ファイバーと対応するDOM要素自分自身
+  wipRoot = { // wip => work in progress、現在更新中のファイバーツリー
+    dom: container,
     props: {
       children: [element],
     },
-  };
+  }
+  nextUnitOfWork = wipRoot
 }
+
+let wipRoot = null
+
+// 次に実行するタスク・レンダリングをnullに初期化
+let nextUnitOfWork = null;
+
+// function workLoop(deadline) {
+//   let shouldYield = false
+//   while (nextUnitOfWork && !shouldYield) {
+//     nextUnitOfWork = performUnitOfWork(
+//       nextUnitOfWork
+//     )
+//     shouldYield = deadline.timeRemaining() < 1
+//   }
+
+//   if (!nextUnitOfWork && wipRoot) {
+//     commitRoot()
+//   }
+
+//   requestIdleCallback(workLoop)
+// }
+
+// requestIdleCallback(workLoop)
 
 export function performUnitOfWork(fiber) {
   // step 1: ファイバーからDOM要素を作り、作られた要素をDOMに追加
-  // dom属性がなければ、ファイバーからDOM要素を作る
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }
 
-  // もし親ファイバーがあれば、親ファイバーのDOM要素にアペンドする
-  if (fiber.parent) {
-    fiber.parent.dom.appendChild(fiber.dom);
-  }
+  // if (fiber.parent) {
+  //   fiber.parent.dom.appendChild(fiber.dom);
+  // }
 
   // step 2: ファイバーの子ファイバーを作る
-  // 要注意：ここのelementsは実際のDOM要素の配列ではなく、
-  // 前節のcreateElementで作られたtypeとpropsのみ持っているオブジェクトの配列となる
   const elements = fiber.props.children;
   let index = 0;
   let prevSibling = null;
 
   while (index < elements.length) {
     const element = elements[index];
-    // elementオブジェクトにparent, domなどの属性を追加することでファイバーとなるため
-    // 下記のnewFiberではelementからtypeとpropsを取得している
     const newFiber = {
       type: element.type,
       props: element.props,
@@ -95,33 +111,39 @@ export function performUnitOfWork(fiber) {
       dom: null,
     };
 
-    // インデックスが0の場合は初回となるため、まず子ファイバーをセット
     if (index === 0) {
-      // ここのchild属性は、あくまでも子要素と対応するファイバーオブジェクト
       fiber.child = newFiber;
     } else {
-      // index > 0の場合は、子要素の兄弟要素を見ているため、「兄弟ファイバーの兄弟ファイバー」をセット
-      // 初回の実行はここにヒットしないため一旦スキップして、次のprevSibling = newFiberを見てから分かりやすい
       prevSibling.sibling = newFiber;
     }
-    // インデックスの増加につれて次のファイバーにいくため、
-    // 新しく作られたファイバーが、兄弟ファイバーのチェインでみると一個前のファイバーとなる
     prevSibling = newFiber;
     index++;
   }
 
   // step 3: 次に実行するタスクを決める
-  // 子ファイバーがある場合は、子ファイバーが対象となる
   if (fiber.child) {
     return fiber.child;
   }
   let nextFiber = fiber;
   while (nextFiber) {
-    // 子ファイバーがない場合は、まず兄弟ファイバーを探す
     if (nextFiber.sibling) {
       return nextFiber.sibling;
     }
-    // 兄弟ファイバーもない場合は、親ファイバーへ戻る（それで親ファイバーの兄弟ファイバーをまた探す）
     nextFiber = nextFiber.parent;
   }
+}
+
+export function commitRoot() {
+  commitWork(wipRoot.child)
+  wipRoot = null // 次回のレンダリングとコミットを干渉しないようにnullへリセット
+}
+
+export function commitWork(fiber) {
+  if (!fiber) {
+    return
+  }
+  const domParent = fiber.parent.dom
+  domParent.appendChild(fiber.dom) // fiber.domはDOM要素そのもの
+  commitWork(fiber.child)
+  commitWork(fiber.sibling)
 }
