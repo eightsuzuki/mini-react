@@ -231,6 +231,64 @@ describe('performUnitOfWork', () => {
   });
 });
 
+describe('workLoop', () => {
+  function requestIdleCallback(callback) {
+    // callback({ timeRemaining: () => 1 });
+    expect(callback).not.toBe(null);
+  }
+
+  test('requestIdleCallback mock work test', () => {
+    global.requestIdleCallback = requestIdleCallback;
+    workLoop(null);
+  });
+});
+
+// describe('workLoop1', () => {
+//   let originalRequestIdleCallback;
+//   let mockRequestIdleCallback;
+//   let mockPerformUnitOfWork;
+//   let mockCommitRoot;
+
+//   beforeEach(() => {
+//     // オリジナルの requestIdleCallback を保持
+//     originalRequestIdleCallback = window.requestIdleCallback;
+
+//     // モック化した requestIdleCallback 関数を作成
+//     mockRequestIdleCallback = jest.fn((callback) => {
+//       // callback({ timeRemaining: () => 1 });
+//       expect(callback).not.toBe(null);
+//     });
+
+//     // モジュール内の関数をモック化
+//     mockPerformUnitOfWork = jest.spyOn(your-module, 'performUnitOfWork').mockImplementation(() => {
+//       // 必要な処理を返す
+//     });
+
+//     mockCommitRoot = jest.spyOn(your-module, 'commitRoot').mockImplementation(() => {
+//       // 必要な処理を返す
+//     });
+
+//     // window.requestIdleCallback をモック化した関数に置き換える
+//     window.requestIdleCallback = mockRequestIdleCallback;
+//   });
+
+//   afterEach(() => {
+//     // テスト終了後にモックを元に戻す
+//     window.requestIdleCallback = originalRequestIdleCallback;
+//     mockPerformUnitOfWork.mockRestore();
+//     mockCommitRoot.mockRestore();
+//   });
+
+//   test('should call requestIdleCallback', () => {
+//     workLoop(null);
+
+//     expect(mockRequestIdleCallback).toHaveBeenCalledTimes(1);
+//     expect(mockRequestIdleCallback).toHaveBeenCalledWith(expect.any(Function));
+//   });
+
+//   // 他のテストケースも追加できます
+// });
+
 describe('commitWork', () => {
   beforeEach(() => {
     const dom = new JSDOM('<!doctype html><html><body></body></html>');
@@ -311,19 +369,80 @@ describe('commitWork', () => {
 //     delete global.document;
 //   });
 
-//   test('commitWork', () => {
+//   // test('commits the child fiber of wipRoot', () => {
+//   //   const parentDom = document.createElement('parent');
+//   //   const myDom = document.createElement('me');
+//   //   const childDom = document.createElement('child');
+
+//   //   const wipRoot = {
+//   //     dom: myDom,
+//   //     parent: {
+//   //       dom: parentDom,
+//   //     },
+//   //     child: null,
+//   //     sibling: null,
+//   //   };
+
+//   //   const fiber = {
+//   //     dom: childDom,
+//   //     parent: wipRoot,
+//   //     child: null,
+//   //     sibling: null,
+//   //   };
+
+//   //   wipRoot.child = fiber;
+
+//   //   commitRoot();
+
+//   //   console.log(fiber.parent.dom);
+
+//   //   expect(fiber.parent.dom).toBe(0);
+//   //   expect(wipRoot).toBe(null);
+//   // });
+
+//   // test('resets wipRoot to null', () => {
+//   //   const childDom = document.createElement('child');
+//   //   const parentDom = document.createElement('parent');
+//   //   const container = document.createElement('container');
+//   //   const wipRoot = { dom: parentDom, child: null, type: 'parent', props: {} };
+//   //   const fiber = {
+//   //     dom: childDom,
+//   //     type: 'child',
+//   //     parent: wipRoot,
+//   //   };
+
+//   //   wipRoot.child = fiber;
+
+//   //   commitRoot();
+
+//   //   expect(parentElement.child.dom).toBe(childDom);
+//   // });
+//   test('resets wipRoot to null', () => {
+//     // テストに必要なDOM要素を作成
+//     const parentDom = document.createElement('div');
+//     const childDom = document.createElement('span');
+
+//     // テスト用のデータを準備
+//     const wipRoot = {
+//       dom: parentDom,
+//       parent: null,
+//       child: {
+//         dom: childDom,
+//         parent: null,
+//         child: null,
+//         sibling: null,
+//       },
+//       sibling: null,
+//     };
+
+//     // commitRootを実行
+//     commitWork(wipRoot.child); // commitWorkの実行が必要
+
+//     // wipRootがnullにリセットされたことを検証
+//     expect(wipRoot).toBe(null);
 //   });
+
+
 // });
 
-// describe('workLoop', () => {
-//   const requestIdleCallback = jest.fn((callback) => {
-//     callback({ timeRemaining: () => 1 }); // 仮の timeRemaining の実装
-//   });
-
-//   test('requestIdleCallback mock', () => {
-//     workLoop();
-
-//     expect(requestIdleCallback).toHaveBeenCalledTimes(1);
-//     expect(requestIdleCallback).toHaveBeenCalledWith(expect.any(Function));
-//   });
-// });
+//　質問　src で wipRootがnullになっているのを確認するほうほう？

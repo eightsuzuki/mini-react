@@ -89,36 +89,32 @@ export function performUnitOfWork(fiber) {
     fiber.dom = createDom(fiber);
   }
 
-  // 既存のステップ2の部分を抽出
-  const elements = fiber.props.children
-  reconcileChildren(fiber, elements)
+  if (fiber.parent) {
+    fiber.parent.dom.appendChild(fiber.dom);
+  }
 
-  // if (fiber.parent) {
-  //   fiber.parent.dom.appendChild(fiber.dom);
-  // }
+  // step 2: ファイバーの子ファイバーを作る
+  const elements = fiber.props.children;
+  let index = 0;
+  let prevSibling = null;
 
-  // // step 2: ファイバーの子ファイバーを作る
-  // const elements = fiber.props.children;
-  // let index = 0;
-  // let prevSibling = null;
+  while (index < elements.length) {
+    const element = elements[index];
+    const newFiber = {
+      type: element.type,
+      props: element.props,
+      parent: fiber,
+      dom: null,
+    };
 
-  // while (index < elements.length) {
-  //   const element = elements[index];
-  //   const newFiber = {
-  //     type: element.type,
-  //     props: element.props,
-  //     parent: fiber,
-  //     dom: null,
-  //   };
-
-  //   if (index === 0) {
-  //     fiber.child = newFiber;
-  //   } else {
-  //     prevSibling.sibling = newFiber;
-  //   }
-  //   prevSibling = newFiber;
-  //   index++;
-  // }
+    if (index === 0) {
+      fiber.child = newFiber;
+    } else {
+      prevSibling.sibling = newFiber;
+    }
+    prevSibling = newFiber;
+    index++;
+  }
 
   // step 3: 次に実行するタスクを決める
   if (fiber.child) {
@@ -130,39 +126,6 @@ export function performUnitOfWork(fiber) {
       return nextFiber.sibling;
     }
     nextFiber = nextFiber.parent;
-  }
-}
-
-
-export function reconcileChildren(wipFiber, elements) {
-  let index = 0
-  // wipFiber.alternate?.child に相当、現時点のファイバーの子ファイバーとなる
-  let oldFiber = wipFiber.alternate && wipFiber.alternate.child
-  let prevSibling = null
-
-  while (
-    index < elements.length ||
-    oldFiber != null
-  ) {
-    const element = elements[index]
-    let newFiber = null
-
-
-    const newFiber = {
-      type: element.type,
-      props: element.props,
-      parent: wipFiber,
-      dom: null,
-    }
-
-    if (index === 0) {
-      wipFiber.child = newFiber
-    } else {
-      prevSibling.sibling = newFiber
-    }
-
-    prevSibling = newFiber
-    index++
   }
 }
 
