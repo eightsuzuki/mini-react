@@ -53,21 +53,23 @@ export function createDom(fiber) {
   //ここは子要素の処理はせず、一旦現時点で作った要素をリターン
   return dom;
 }
+// 次に実行するタスク・レンダリングをnullに初期化
+let nextUnitOfWork = null;
+let currentRoot = null;
+let wipRoot = null;
+let deletions = null;
 
 export function render(element, container) {
   wipRoot = {
-    // wip => work in progress、現在更新中のファイバーツリー
     dom: container,
     props: {
       children: [element],
     },
+    alternate: currentRoot,
   };
+  deletions = [];
   nextUnitOfWork = wipRoot;
 }
-
-// 次に実行するタスク・レンダリングをnullに初期化
-let nextUnitOfWork = null;
-let wipRoot = null;
 
 export function workLoop(deadline) {
   let shouldYield = false;
@@ -90,8 +92,8 @@ export function performUnitOfWork(fiber) {
   }
 
   // 既存のステップ2の部分を抽出
-  const elements = fiber.props.children
-  reconcileChildren(fiber, elements)
+  const elements = fiber.props.children;
+  reconcileChildren(fiber, elements);
 
   // if (fiber.parent) {
   //   fiber.parent.dom.appendChild(fiber.dom);
@@ -133,42 +135,62 @@ export function performUnitOfWork(fiber) {
   }
 }
 
-
 export function reconcileChildren(wipFiber, elements) {
-  let index = 0
-  // wipFiber.alternate?.child に相当、現時点のファイバーの子ファイバーとなる
-  let oldFiber = wipFiber.alternate && wipFiber.alternate.child
-  let prevSibling = null
+  let index = 0;
+  let oldFiber = wipFiber.alternate && wipFiber.alternate.child;
+  let prevSibling = null;
 
-  while (
-    index < elements.length ||
-    oldFiber != null
-  ) {
-    const element = elements[index]
-    let newFiber = null
+  while (index < elements.length || oldFiber != null) {
+    const element = elements[index];
+    let newFiber = null;
 
+    const sameType = oldFiber && element && element.type == oldFiber.type;
 
-    const newFiber = {
-      type: element.type,
-      props: element.props,
-      parent: wipFiber,
-      dom: null,
+    if (sameType) {
+      newFiber = {
+        type: oldFiber.type,
+        props: element.props,
+        dom: oldFiber.dom,
+        parent: wipFiber,
+        alternate: oldFiber,
+        effectTag: 'UPDATE',
+      };
+    }
+    if (element && !sameType) {
+      newFiber = {
+        type: element.type,
+        props: element.props,
+        dom: null,
+        parent: wipFiber,
+        alternate: null,
+        effectTag: 'PLACEMENT',
+      };
+    }
+    if (oldFiber && !sameType) {
+      oldFiber.effectTag = 'DELETION';
+      deletions.push(oldFiber);
+    }
+
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling;
     }
 
     if (index === 0) {
-      wipFiber.child = newFiber
-    } else {
-      prevSibling.sibling = newFiber
+      wipFiber.child = newFiber;
+    } else if (element) {
+      prevSibling.sibling = newFiber;
     }
 
-    prevSibling = newFiber
-    index++
+    prevSibling = newFiber;
+    index++;
   }
 }
 
 export function commitRoot() {
+  deletions.forEach(commitWork);
   commitWork(wipRoot.child);
-  wipRoot = null; // 次回のレンダリングとコミットを干渉しないようにnullへリセット
+  currentRoot = wipRoot; // レンダリングのコミットが終わったら現在のrootを更新
+  wipRoot = null; // するとまたwipRootをnullへリセットし、次のレンダリングを待つ
 }
 
 export function commitWork(fiber) {
@@ -179,4 +201,60 @@ export function commitWork(fiber) {
   domParent.appendChild(fiber.dom); // fiber.domはDOM要素そのもの
   commitWork(fiber.child);
   commitWork(fiber.sibling);
+}
+
+// DOM要素更新のためのチェック関数
+const isEvent = key => key.startsWith("on")
+const isProperty = key => key !== "children" && !isEvent(key)
+const isNew = (prev, next) => key => prev[key] !== next[key]
+const isGone = (prev, next) => key => !(key in next)
+
+export function updateDom(dom, prevProps, nextProps) {
+  // 変わったevent listenerを一旦削除
+  Object.keys(prevProps)
+    .filter(isEvent)
+    .filter(
+      key =>
+        !(key in nextProps) ||
+        isNew(prevProps, nextProps)(key)
+    )
+    .forEach(name => {
+      const eventType = name
+        .toLowerCase()
+        .substring(2)
+      dom.removeEventListener(
+        eventType,
+        prevProps[name]
+      )
+    })
+
+  // なくなった属性を空文字列へ
+  Object.keys(prevProps)
+    .filter(isProperty)
+    .filter(isGone(prevProps, nextProps))
+    .forEach(name => {
+      dom[name] = ""
+    })
+
+  // 新しい属性を追加
+  Object.keys(nextProps)
+    .filter(isProperty)
+    .filter(isNew(prevProps, nextProps))
+    .forEach(name => {
+      dom[name] = nextProps[name]
+    })
+
+  // 新規の属性にあるevent listenerを追加
+  Object.keys(nextProps)
+    .filter(isEvent)
+    .filter(isNew(prevProps, nextProps))
+    .forEach(name => {
+      const eventType = name
+        .toLowerCase()
+        .substring(2)
+      dom.addEventListener(
+        eventType,
+        nextProps[name]
+      )
+    })
 }

@@ -10,6 +10,8 @@ import {
   workLoop,
   commitRoot,
   commitWork,
+  reconcileChildren,
+  updateDom,
 } from '../src';
 import { JSDOM } from 'jsdom';
 
@@ -243,52 +245,6 @@ describe('workLoop', () => {
   });
 });
 
-// describe('workLoop1', () => {
-//   let originalRequestIdleCallback;
-//   let mockRequestIdleCallback;
-//   let mockPerformUnitOfWork;
-//   let mockCommitRoot;
-
-//   beforeEach(() => {
-//     // オリジナルの requestIdleCallback を保持
-//     originalRequestIdleCallback = window.requestIdleCallback;
-
-//     // モック化した requestIdleCallback 関数を作成
-//     mockRequestIdleCallback = jest.fn((callback) => {
-//       // callback({ timeRemaining: () => 1 });
-//       expect(callback).not.toBe(null);
-//     });
-
-//     // モジュール内の関数をモック化
-//     mockPerformUnitOfWork = jest.spyOn(your-module, 'performUnitOfWork').mockImplementation(() => {
-//       // 必要な処理を返す
-//     });
-
-//     mockCommitRoot = jest.spyOn(your-module, 'commitRoot').mockImplementation(() => {
-//       // 必要な処理を返す
-//     });
-
-//     // window.requestIdleCallback をモック化した関数に置き換える
-//     window.requestIdleCallback = mockRequestIdleCallback;
-//   });
-
-//   afterEach(() => {
-//     // テスト終了後にモックを元に戻す
-//     window.requestIdleCallback = originalRequestIdleCallback;
-//     mockPerformUnitOfWork.mockRestore();
-//     mockCommitRoot.mockRestore();
-//   });
-
-//   test('should call requestIdleCallback', () => {
-//     workLoop(null);
-
-//     expect(mockRequestIdleCallback).toHaveBeenCalledTimes(1);
-//     expect(mockRequestIdleCallback).toHaveBeenCalledWith(expect.any(Function));
-//   });
-
-//   // 他のテストケースも追加できます
-// });
-
 describe('commitWork', () => {
   beforeEach(() => {
     const dom = new JSDOM('<!doctype html><html><body></body></html>');
@@ -442,7 +398,254 @@ describe('commitWork', () => {
 //     expect(wipRoot).toBe(null);
 //   });
 
-
 // });
 
-//　質問　src で wipRootがnullになっているのを確認するほうほう？
+// 　質問　src で wipRootがnullになっているのを確認するほうほう？
+
+describe('reconcileChildren', () => {
+  beforeEach(() => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>');
+    global.document = dom.window.document;
+  });
+
+  afterEach(() => {
+    delete global.document;
+  });
+
+  test('reconcile children and create new fiber', () => {
+    const parentFiber = {
+      alternate: null,
+      child: null,
+    };
+
+    const elements = [
+      { type: 'div', props: {} },
+      { type: 'span', props: {} },
+      { type: 'p', props: {} },
+    ];
+
+    reconcileChildren(parentFiber, elements);
+
+    expect(parentFiber.child.type).toBe('div');
+    expect(parentFiber.child.sibling.type).toBe('span');
+    expect(parentFiber.child.sibling.sibling.type).toBe('p');
+  });
+
+  test('reconciles children with same type', () => {
+    const wipFiber = {
+      alternate: {
+        child: {
+          type: 'div',
+          props: { id: 'old' },
+          dom: document.createElement('div'),
+        },
+      },
+    };
+    const elements = [
+      { type: 'div', props: { id: 'new' } },
+      { type: 'span', props: { id: 'new2' } },
+    ];
+
+    reconcileChildren(wipFiber, elements);
+
+    expect(wipFiber.child.type).toBe('div');
+    expect(wipFiber.child.props.id).toBe('new');
+    expect(wipFiber.child.alternate).toBeDefined();
+    expect(wipFiber.child.effectTag).toBe('UPDATE');
+    expect(wipFiber.child.sibling.type).toBe('span');
+    expect(wipFiber.child.sibling.props.id).toBe('new2');
+    expect(wipFiber.child.sibling.alternate).toBeNull();
+    expect(wipFiber.child.sibling.effectTag).toBe('PLACEMENT');
+  });
+
+  /* renderを行なってできるsrc.jsでのグローバル関数deletionsはexportされないためテストできない*/
+
+  // test('reconciles children with different types', () => {
+  //   const wipFiber = {
+  //     alternate: {
+  //       child: {
+  //         type: 'div',
+  //         props: { id: 'old' },
+  //         dom: document.createElement('div'),
+  //       },
+  //     },
+  //   };
+  //   const elements = [
+  //     { type: 'span', props: { id: 'new' } },
+  //   ];
+  //   let deletions = [];
+
+  //   reconcileChildren(wipFiber, elements); // `deletions` 配列の追加
+
+  //   expect(wipFiber.child.type).toBe('span');
+  //   expect(wipFiber.child.props.id).toBe('new');
+  //   expect(wipFiber.child.alternate).toBeNull();
+  //   expect(wipFiber.child.effectTag).toBe('PLACEMENT');
+  //   expect(deletions.length).toBe(1); // `deletions` 配列の要素数を確認
+  //   expect(deletions[0].type).toBe('div'); // 削除された要素を確認
+  //   expect(deletions[0].effectTag).toBe('DELETION'); // 削除された要素の effectTag を確認
+  // });
+});
+
+describe('updateDom', () => {
+  beforeEach(() => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>');
+    global.document = dom.window.document;
+  });
+
+  afterEach(() => {
+    delete global.document;
+  });
+
+  test('update DOM properties', () => {
+    const dom = document.createElement('div');
+    const prevProps = {
+      id: 'prev-id',
+      class: 'prev-class',
+      style: 'color: red;',
+    };
+    const nextProps = {
+      id: 'new-id',
+      class: 'new-class',
+      style: 'color: blue;',
+      value: 'input value',
+    };
+
+    updateDom(dom, prevProps, nextProps);
+
+    expect(dom.id).toBe('new-id');
+    expect(dom.class).toBe('new-class');
+    expect(dom.style.cssText).toBe('color: blue;');
+    expect(dom.value).toBe('input value');
+  });
+
+  test('add Event Handlers', () => {
+    const dom = document.createElement('div');
+    const prevProps = {
+      onClick: jest.fn(),
+      className: 'prev-class',
+      title: 'Previous',
+    };
+    const nextProps = {
+      onClick: jest.fn(),
+      className: 'next-class',
+      title: 'Next',
+      onMouseOver: jest.fn(),
+    };
+
+    // removeEventListenerのモック関数を作成
+    const removeEventListenerMock = jest.fn();
+    dom.removeEventListener = removeEventListenerMock;
+
+    // addEventListenerのモック関数を作成
+    const addEventListenerMock = jest.fn();
+    dom.addEventListener = addEventListenerMock;
+
+    updateDom(dom, prevProps, nextProps);
+
+    // 変更されたevent listenerが削除されたか確認
+    expect(removeEventListenerMock).toHaveBeenCalledTimes(1);
+    expect(removeEventListenerMock).toHaveBeenCalledWith(
+      'click',
+      prevProps.onClick
+    );
+
+    // 変わった属性が空文字列になったか確認
+    expect(dom.className).toBe('next-class');
+    expect(dom.title).toBe('Next');
+
+    // 新しい属性が正しく設定されたか確認
+    expect(dom.className).toBe('next-class');
+    expect(dom.title).toBe('Next');
+
+    // 新規のevent listenerが追加されたか確認
+    expect(addEventListenerMock).toHaveBeenCalledTimes(2);
+    expect(addEventListenerMock).toHaveBeenCalledWith(
+      'mouseover',
+      nextProps.onMouseOver
+    );
+  });
+
+  test('delete and add Event Handlers', () => {
+    const dom = document.createElement('div');
+
+    const prevProps = {
+      onClick: jest.fn(),
+      className: 'prev-class',
+    };
+
+    const nextProps = {
+      title: 'Next',
+      onMouseOver: jest.fn(),
+    };
+
+    // removeEventListenerのモック関数を作成
+    const removeEventListenerMock = jest.fn();
+    dom.removeEventListener = removeEventListenerMock;
+
+    // addEventListenerのモック関数を作成
+    const addEventListenerMock = jest.fn();
+    dom.addEventListener = addEventListenerMock;
+
+    updateDom(dom, prevProps, nextProps);
+
+    // 新しい属性が正しく設定されているか確認
+    expect(dom.className).toBe('');
+    expect(dom.title).toBe('Next');
+
+    // 削除されたイベントリスナーがremoveEventListenerで呼び出されているか確認
+    expect(removeEventListenerMock).toHaveBeenCalledTimes(1);
+    expect(removeEventListenerMock).toHaveBeenCalledWith(
+      'click',
+      prevProps.onClick
+    );
+
+    // 新しいイベントリスナーがaddEventListenerで設定されているか確認
+    expect(addEventListenerMock).toHaveBeenCalledTimes(1);
+    expect(addEventListenerMock).toHaveBeenCalledWith(
+      'mouseover',
+      nextProps.onMouseOver
+    );
+  });
+
+  test('not chnge prevProps being the same as nextProps', () => {
+    const dom = document.createElement('div');
+    const logFn = () => {
+      console.log('Function called');
+    };
+
+    const prevProps = {
+      onClick: logFn,
+      className: 'prev-class',
+      title: 'Previous',
+    };
+
+    const nextProps = {
+      onClick: logFn,
+      className: 'prev-class',
+      title: 'Previous',
+    };
+
+  
+    // removeEventListenerのモック関数を作成
+    const removeEventListenerMock = jest.fn();
+    dom.removeEventListener = removeEventListenerMock;
+  
+    // addEventListenerのモック関数を作成
+    const addEventListenerMock = jest.fn();
+    dom.addEventListener = addEventListenerMock;
+  
+    updateDom(dom, prevProps, nextProps);
+  
+    // 変更されたevent listenerが削除されたか確認
+    expect(removeEventListenerMock).toHaveBeenCalledTimes(0);
+    expect(removeEventListenerMock).not.toHaveBeenCalledWith(
+      'click',
+      prevProps.onClick
+    );
+  
+    // 新規のevent listenerが追加されたか確認
+    expect(addEventListenerMock).toHaveBeenCalledTimes(0);
+  });
+  
+});

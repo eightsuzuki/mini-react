@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "プログラムの起動",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/updateDom.js"
+        },
+        {
+            "type": "node-terminal",
+            "name": "スクリプトの実行: test",
+            "request": "launch",
+            "command": "npm run test",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
