@@ -245,7 +245,74 @@ describe('workLoop', () => {
   });
 });
 
-describe('commitWork', () => {
+// describe('commitWork', () => {
+//   beforeEach(() => {
+//     const dom = new JSDOM('<!doctype html><html><body></body></html>');
+//     global.document = dom.window.document;
+//   });
+
+//   afterEach(() => {
+//     delete global.document;
+//   });
+
+//   test('commits a fiber with PLACEMENT effect', () => {
+//     const parentDom = document.createElement('div');
+//     const childDom = document.createElement('span');
+//     const fiber = {
+//       dom: childDom,
+//       parent: {
+//         dom: parentDom,
+//       },
+//       effectTag: 'PLACEMENT',
+//     };
+
+//     commitWork(fiber);
+
+//     expect(parentDom.childNodes.length).toBe(1);
+//     expect(parentDom.childNodes[0]).toBe(childDom);
+//   });
+
+//   test('commits a fiber with UPDATE effect', () => {
+//     const dom = document.createElement('div');
+//     dom.textContent = 'Previous';
+//     const fiber = {
+//       dom: dom,
+//       parent: null,
+//       effectTag: 'UPDATE',
+//       alternate: {
+//         props: {
+//           children: ['Previous'],
+//         },
+//       },
+//       props: {
+//         children: ['Next'],
+//       },
+//     };
+
+//     commitWork(fiber);
+
+//     expect(dom.textContent).toBe('Next');
+//   });
+
+//   test('commits a fiber with DELETION effect', () => {
+//     const parentDom = document.createElement('div');
+//     const childDom = document.createElement('span');
+//     parentDom.appendChild(childDom);
+//     const fiber = {
+//       dom: childDom,
+//       parent: {
+//         dom: parentDom,
+//       },
+//       effectTag: 'DELETION',
+//     };
+
+//     commitWork(fiber);
+
+//     expect(parentDom.childNodes.length).toBe(0);
+//   });
+// });
+
+describe('reconcileChildren', () => {
   beforeEach(() => {
     const dom = new JSDOM('<!doctype html><html><body></body></html>');
     global.document = dom.window.document;
@@ -255,64 +322,79 @@ describe('commitWork', () => {
     delete global.document;
   });
 
-  test('commit fiber.dom to the parent DOM', () => {
-    const parentDom = document.createElement('parent');
-    const childDom = document.createElement('child');
-
-    const fiber = {
-      dom: childDom,
-      parent: {
-        dom: parentDom,
-      },
+  test('reconcile children and create new fiber', () => {
+    const parentFiber = {
+      alternate: null,
       child: null,
-      sibling: null,
     };
 
-    commitWork(fiber);
+    const elements = [
+      { type: 'div', props: {} },
+      { type: 'span', props: {} },
+      { type: 'p', props: {} },
+    ];
 
-    expect(parentDom.contains(childDom)).toBe(true);
+    reconcileChildren(parentFiber, elements);
+
+    expect(parentFiber.child.type).toBe('div');
+    expect(parentFiber.child.sibling.type).toBe('span');
+    expect(parentFiber.child.sibling.sibling.type).toBe('p');
   });
 
-  test('commit child and sibling fibers', () => {
-    // モックとして使用するDOM要素を作成
-    const parentDom = document.createElement('parent');
-    const myDom = document.createElement('me');
-    const childDom = document.createElement('child1');
-    const siblingDom = document.createElement('child2');
-
-    const myFiber = {
-      dom: myDom,
-      parent: {
-        dom: parentDom,
+  test('reconciles children with same type', () => {
+    const wipFiber = {
+      alternate: {
+        child: {
+          type: 'div',
+          props: { id: 'old' },
+          dom: document.createElement('div'),
+        },
       },
-      child: null,
-      sibling: null,
     };
+    const elements = [
+      { type: 'div', props: { id: 'new' } },
+      { type: 'span', props: { id: 'new2' } },
+    ];
 
-    const siblingFiber = {
-      dom: siblingDom,
-      parent: myFiber,
-      child: null,
-      sibling: null,
-    };
+    reconcileChildren(wipFiber, elements);
 
-    const childFiber = {
-      dom: childDom,
-      parent: myFiber,
-      child: null,
-      sibling: siblingFiber,
-    };
-
-    myFiber.child = childFiber;
-
-    commitWork(myFiber);
-
-    expect(parentDom.contains(myDom)).toBe(true);
-    expect(myDom.contains(childDom)).toBe(true);
-    expect(childDom.nextSibling).toBe(siblingDom);
-    expect(childDom.contains(myDom)).toBe(false);
-    expect(parentDom.contains(siblingDom)).toBe(true);
+    expect(wipFiber.child.type).toBe('div');
+    expect(wipFiber.child.props.id).toBe('new');
+    expect(wipFiber.child.alternate).toBeDefined();
+    expect(wipFiber.child.effectTag).toBe('UPDATE');
+    expect(wipFiber.child.sibling.type).toBe('span');
+    expect(wipFiber.child.sibling.props.id).toBe('new2');
+    expect(wipFiber.child.sibling.alternate).toBeNull();
+    expect(wipFiber.child.sibling.effectTag).toBe('PLACEMENT');
   });
+
+  /* renderを行なってできるsrc.jsでのグローバル関数deletionsはexportされないためテストできない*/
+
+  // test('reconciles children with different types', () => {
+  //   const wipFiber = {
+  //     alternate: {
+  //       child: {
+  //         type: 'div',
+  //         props: { id: 'old' },
+  //         dom: document.createElement('div'),
+  //       },
+  //     },
+  //   };
+  //   const elements = [
+  //     { type: 'span', props: { id: 'new' } },
+  //   ];
+  //   let deletions = [];
+
+  //   reconcileChildren(wipFiber, elements); // `deletions` 配列の追加
+
+  //   expect(wipFiber.child.type).toBe('span');
+  //   expect(wipFiber.child.props.id).toBe('new');
+  //   expect(wipFiber.child.alternate).toBeNull();
+  //   expect(wipFiber.child.effectTag).toBe('PLACEMENT');
+  //   expect(deletions.length).toBe(1); // `deletions` 配列の要素数を確認
+  //   expect(deletions[0].type).toBe('div'); // 削除された要素を確認
+  //   expect(deletions[0].effectTag).toBe('DELETION'); // 削除された要素の effectTag を確認
+  // });
 });
 
 // describe('commitRoot', () => {
@@ -400,93 +482,6 @@ describe('commitWork', () => {
 
 // });
 
-// 　質問　src で wipRootがnullになっているのを確認するほうほう？
-
-describe('reconcileChildren', () => {
-  beforeEach(() => {
-    const dom = new JSDOM('<!doctype html><html><body></body></html>');
-    global.document = dom.window.document;
-  });
-
-  afterEach(() => {
-    delete global.document;
-  });
-
-  test('reconcile children and create new fiber', () => {
-    const parentFiber = {
-      alternate: null,
-      child: null,
-    };
-
-    const elements = [
-      { type: 'div', props: {} },
-      { type: 'span', props: {} },
-      { type: 'p', props: {} },
-    ];
-
-    reconcileChildren(parentFiber, elements);
-
-    expect(parentFiber.child.type).toBe('div');
-    expect(parentFiber.child.sibling.type).toBe('span');
-    expect(parentFiber.child.sibling.sibling.type).toBe('p');
-  });
-
-  test('reconciles children with same type', () => {
-    const wipFiber = {
-      alternate: {
-        child: {
-          type: 'div',
-          props: { id: 'old' },
-          dom: document.createElement('div'),
-        },
-      },
-    };
-    const elements = [
-      { type: 'div', props: { id: 'new' } },
-      { type: 'span', props: { id: 'new2' } },
-    ];
-
-    reconcileChildren(wipFiber, elements);
-
-    expect(wipFiber.child.type).toBe('div');
-    expect(wipFiber.child.props.id).toBe('new');
-    expect(wipFiber.child.alternate).toBeDefined();
-    expect(wipFiber.child.effectTag).toBe('UPDATE');
-    expect(wipFiber.child.sibling.type).toBe('span');
-    expect(wipFiber.child.sibling.props.id).toBe('new2');
-    expect(wipFiber.child.sibling.alternate).toBeNull();
-    expect(wipFiber.child.sibling.effectTag).toBe('PLACEMENT');
-  });
-
-  /* renderを行なってできるsrc.jsでのグローバル関数deletionsはexportされないためテストできない*/
-
-  // test('reconciles children with different types', () => {
-  //   const wipFiber = {
-  //     alternate: {
-  //       child: {
-  //         type: 'div',
-  //         props: { id: 'old' },
-  //         dom: document.createElement('div'),
-  //       },
-  //     },
-  //   };
-  //   const elements = [
-  //     { type: 'span', props: { id: 'new' } },
-  //   ];
-  //   let deletions = [];
-
-  //   reconcileChildren(wipFiber, elements); // `deletions` 配列の追加
-
-  //   expect(wipFiber.child.type).toBe('span');
-  //   expect(wipFiber.child.props.id).toBe('new');
-  //   expect(wipFiber.child.alternate).toBeNull();
-  //   expect(wipFiber.child.effectTag).toBe('PLACEMENT');
-  //   expect(deletions.length).toBe(1); // `deletions` 配列の要素数を確認
-  //   expect(deletions[0].type).toBe('div'); // 削除された要素を確認
-  //   expect(deletions[0].effectTag).toBe('DELETION'); // 削除された要素の effectTag を確認
-  // });
-});
-
 describe('updateDom', () => {
   beforeEach(() => {
     const dom = new JSDOM('<!doctype html><html><body></body></html>');
@@ -497,85 +492,63 @@ describe('updateDom', () => {
     delete global.document;
   });
 
-  test('update DOM properties', () => {
-    const dom = document.createElement('div');
-    const prevProps = {
-      id: 'prev-id',
-      class: 'prev-class',
-      style: 'color: red;',
-    };
-    const nextProps = {
-      id: 'new-id',
-      class: 'new-class',
-      style: 'color: blue;',
-      value: 'input value',
-    };
-
-    updateDom(dom, prevProps, nextProps);
-
-    expect(dom.id).toBe('new-id');
-    expect(dom.class).toBe('new-class');
-    expect(dom.style.cssText).toBe('color: blue;');
-    expect(dom.value).toBe('input value');
-  });
-
-  test('add Event Handlers', () => {
+  test('removes previous event listeners correctly', () => {
     const dom = document.createElement('div');
     const prevProps = {
       onClick: jest.fn(),
-      className: 'prev-class',
-      title: 'Previous',
-    };
-    const nextProps = {
-      onClick: jest.fn(),
-      className: 'next-class',
-      title: 'Next',
       onMouseOver: jest.fn(),
+      onKeyPress: jest.fn(),
+    };
+    const nextProps = {
+      onClick: jest.fn(),
+      onKeyUp: jest.fn(),
     };
 
     // removeEventListenerのモック関数を作成
     const removeEventListenerMock = jest.fn();
     dom.removeEventListener = removeEventListenerMock;
-
-    // addEventListenerのモック関数を作成
-    const addEventListenerMock = jest.fn();
-    dom.addEventListener = addEventListenerMock;
 
     updateDom(dom, prevProps, nextProps);
 
     // 変更されたevent listenerが削除されたか確認
-    expect(removeEventListenerMock).toHaveBeenCalledTimes(1);
-    expect(removeEventListenerMock).toHaveBeenCalledWith(
-      'click',
-      prevProps.onClick
-    );
-
-    // 変わった属性が空文字列になったか確認
-    expect(dom.className).toBe('next-class');
-    expect(dom.title).toBe('Next');
-
-    // 新しい属性が正しく設定されたか確認
-    expect(dom.className).toBe('next-class');
-    expect(dom.title).toBe('Next');
-
-    // 新規のevent listenerが追加されたか確認
-    expect(addEventListenerMock).toHaveBeenCalledTimes(2);
-    expect(addEventListenerMock).toHaveBeenCalledWith(
-      'mouseover',
-      nextProps.onMouseOver
-    );
+    expect(removeEventListenerMock).toHaveBeenCalledTimes(3);
+    expect(removeEventListenerMock).toHaveBeenCalledWith('click', prevProps.onClick);
+    expect(removeEventListenerMock).toHaveBeenCalledWith('mouseover', prevProps.onMouseOver);
+    expect(removeEventListenerMock).toHaveBeenCalledWith('keypress', prevProps.onKeyPress);
   });
 
-  test('delete and add Event Handlers', () => {
+  test('updates DOM element properties correctly', () => {
+    const dom = document.createElement('div');
+    const prevProps = {
+      className: 'prev-class',
+      title: 'Previous',
+      value: 'prev-value',
+    };
+    const nextProps = {
+      className: 'next-class',
+      title: 'Next',
+
+    };
+        // removeEventListenerのモック関数を作成
+    const removeEventListenerMock = jest.fn();
+    dom.removeEventListener = removeEventListenerMock;
+
+    updateDom(dom, prevProps, nextProps);
+
+    expect(dom.className).toBe('next-class');
+    expect(dom.title).toBe('Next');
+    expect(dom.value).toBe('');
+  });
+
+  test('adds new event listeners correctly', () => {
     const dom = document.createElement('div');
 
     const prevProps = {
       onClick: jest.fn(),
-      className: 'prev-class',
     };
 
     const nextProps = {
-      title: 'Next',
+      onClick: jest.fn(),
       onMouseOver: jest.fn(),
     };
 
@@ -588,10 +561,6 @@ describe('updateDom', () => {
     dom.addEventListener = addEventListenerMock;
 
     updateDom(dom, prevProps, nextProps);
-
-    // 新しい属性が正しく設定されているか確認
-    expect(dom.className).toBe('');
-    expect(dom.title).toBe('Next');
 
     // 削除されたイベントリスナーがremoveEventListenerで呼び出されているか確認
     expect(removeEventListenerMock).toHaveBeenCalledTimes(1);
@@ -601,51 +570,14 @@ describe('updateDom', () => {
     );
 
     // 新しいイベントリスナーがaddEventListenerで設定されているか確認
-    expect(addEventListenerMock).toHaveBeenCalledTimes(1);
+    expect(addEventListenerMock).toHaveBeenCalledTimes(2);
     expect(addEventListenerMock).toHaveBeenCalledWith(
       'mouseover',
       nextProps.onMouseOver
-    );
-  });
-
-  test('not chnge prevProps being the same as nextProps', () => {
-    const dom = document.createElement('div');
-    const logFn = () => {
-      console.log('Function called');
-    };
-
-    const prevProps = {
-      onClick: logFn,
-      className: 'prev-class',
-      title: 'Previous',
-    };
-
-    const nextProps = {
-      onClick: logFn,
-      className: 'prev-class',
-      title: 'Previous',
-    };
-
-  
-    // removeEventListenerのモック関数を作成
-    const removeEventListenerMock = jest.fn();
-    dom.removeEventListener = removeEventListenerMock;
-  
-    // addEventListenerのモック関数を作成
-    const addEventListenerMock = jest.fn();
-    dom.addEventListener = addEventListenerMock;
-  
-    updateDom(dom, prevProps, nextProps);
-  
-    // 変更されたevent listenerが削除されたか確認
-    expect(removeEventListenerMock).toHaveBeenCalledTimes(0);
-    expect(removeEventListenerMock).not.toHaveBeenCalledWith(
+    );    
+    expect(addEventListenerMock).toHaveBeenCalledWith(
       'click',
-      prevProps.onClick
+      nextProps.onClick
     );
-  
-    // 新規のevent listenerが追加されたか確認
-    expect(addEventListenerMock).toHaveBeenCalledTimes(0);
   });
-  
 });

@@ -2,14 +2,21 @@
   "name": "mini-react",
   "version": "0.0.1",
   "description": "Build my own React from scratch",
+  "keywords": [],
   "main": "index.js",
-  "repository": "git@github.com:ryuji0123/mini-react.git",
-  "author": "ryuji0123 <rokuda1011@gmail.com>",
+  "repository": "git@github.com:eightsuzuki/mini-react.git",
+  "author": "eightsuzuki <suzuki8@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "test": "jest --silent=false --verbose=true"
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "jest --silent=false --verbose=true",
+    "eject": "react-scripts eject"
   },
   "devDependencies": {
+    "react": "16.8.6",
+    "react-dom": "16.8.6",
+    "react-scripts": "3.0.1",
     "@babel/core": "^7.21.8",
     "@babel/preset-env": "^7.21.5",
     "babel-jest": "^29.5.0",
@@ -19,5 +26,11 @@
   "dependencies": {
     "@babel/preset-flow": "^7.21.4",
     "@types/jest": "^29.5.1"
-  }
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ]
 }

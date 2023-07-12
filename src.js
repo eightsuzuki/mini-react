@@ -195,12 +195,30 @@ export function commitRoot() {
 
 export function commitWork(fiber) {
   if (!fiber) {
-    return;
+    return
   }
-  const domParent = fiber.parent.dom;
-  domParent.appendChild(fiber.dom); // fiber.domはDOM要素そのもの
-  commitWork(fiber.child);
-  commitWork(fiber.sibling);
+  // 注意：ファイバー自身ではなく、親ファイバーからアクセスできる親要素からの操作となる
+  const domParent = fiber.parent.dom
+  if (
+    fiber.effectTag === "PLACEMENT" &&
+    fiber.dom != null
+  ) {
+    domParent.appendChild(fiber.dom)
+  } else if (
+    fiber.effectTag === "UPDATE" &&
+    fiber.dom != null
+    ) {
+    updateDom(
+      fiber.dom,
+      fiber.alternate.props,
+      fiber.props
+    )
+  } else if (fiber.effectTag === "DELETION") {
+    domParent.removeChild(fiber.dom)
+  }
+
+  commitWork(fiber.child)
+  commitWork(fiber.sibling)
 }
 
 // DOM要素更新のためのチェック関数
@@ -208,6 +226,7 @@ const isEvent = key => key.startsWith("on")
 const isProperty = key => key !== "children" && !isEvent(key)
 const isNew = (prev, next) => key => prev[key] !== next[key]
 const isGone = (prev, next) => key => !(key in next)
+
 
 export function updateDom(dom, prevProps, nextProps) {
   // 変わったevent listenerを一旦削除
@@ -258,3 +277,28 @@ export function updateDom(dom, prevProps, nextProps) {
       )
     })
 }
+
+
+// const Didact = {
+//   createElement,
+//   render,
+// }
+
+// /** @jsx Didact.createElement */
+// const container = document.getElementById("root")
+
+// const updateValue = e => {
+//   rerender(e.target.value)
+// }
+
+// const rerender = value => {
+//   const element = (
+//     <div>
+//       <input onInput={updateValue} value={value} />
+//       <h2>Hello {value}</h2>
+//     </div>
+//   )
+//   Didact.render(element, container)
+// }
+
+// rerender("World")
