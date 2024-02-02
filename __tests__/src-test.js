@@ -12,6 +12,9 @@ import {
   commitWork,
   reconcileChildren,
   updateDom,
+  updateHostComponent, 
+  useState, 
+  updateFunctionComponent,
 } from '../src';
 import { JSDOM } from 'jsdom';
 

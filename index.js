@@ -1,2 +1,1 @@
-export { createElement, render, commitRoot, createDom, workLoop, performUnitOfWork, reconcileChildren, commitWork, updateDom } from './src';
-
+export { createElement, render, commitRoot, createDom, workLoop, performUnitOfWork, reconcileChildren, commitWork, updateDom, updateHostComponent, useState, updateFunctionComponent} from './src';

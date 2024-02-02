@@ -5,7 +5,7 @@ I want to understand the internal structure of React.
 
 ## reference
 https://github.com/pomber/didact
-
+https://github.com/facebook/react
 
 ## Preparation
 
@@ -40,6 +40,10 @@ Note that your functions or variables should be exported from `index.js`.
 ## Test
 
 Open Jest settings, test files, and run each test.
+or
+```shell
+npm run test
+```
 
 # Reactの構造
 
